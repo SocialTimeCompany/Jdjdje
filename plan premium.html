@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Cibercanal - Plan Premium</title>
+    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet" />
+    <style>
+        body { background: #000; color: #fff; font-family: Arial, sans-serif; margin: 0; overflow: hidden; }
+        .main-container { width: 100%; height: 100vh; display: table; border-collapse: collapse; }
+        .top-half { display: table-row; height: 50%; }
+        .video-space { width: 60%; position: relative; background: #000; border-right: 3px solid #fff; display: table-cell; vertical-align: top; }
+        .video-js { width: 100% !important; height: 100% !important; }
+        #pause-icon { position: absolute; top: 20px; left: 20px; background: #000; color: #ffff00; padding: 10px; border-radius: 5px; font-size: 20px; display: none; z-index: 2000; border: 2px solid #ffff00; font-weight: bold; }
+        .info-space { width: 40%; background: #ffffff; color: #000; display: table-cell; vertical-align: top; }
+        .info-header { background: #1b4d82; color: #fff; padding: 15px; text-align: center; font-weight: bold; font-size: 20px; }
+        .epg-content { padding: 30px; text-align: center; }
+        .ch-num-display { font-size: 110px; font-weight: bold; color: #1b4d82; margin: 0; line-height: 1; }
+        .ch-name-display { font-size: 32px; font-weight: bold; color: #cc0000; text-transform: uppercase; margin-top: 10px; }
+        .guide-container { display: table-row; height: 50%; background: #3a8ccb; }
+        .grid-wrapper { height: 100%; overflow-y: auto; outline: none; }
+        .channel-item { display: block; width: 100%; height: 75px; border-bottom: 1px solid rgba(255,255,255,0.3); clear: both; box-sizing: border-box; border: 4px solid transparent; }
+        .channel-item.focused { border: 6px solid #ffff00 !important; background: #1b4d82; color: #fff; }
+        .channel-item.active { background: #004080; color: #fff; }
+        .channel-item.active .ch-id { background: #ffff00; color: #000; }
+        .ch-id { float: left; width: 100px; background: #1b4d82; height: 100%; line-height: 65px; text-align: center; font-weight: bold; color: #fff; font-size: 35px; border-right: 2px solid #fff; }
+        .ch-name { float: left; line-height: 65px; padding-left: 20px; font-size: 26px; text-transform: uppercase; font-weight: bold; }
+        #clock { font-size: 35px; text-align: center; padding: 15px; background: #000; color: #ffff00; font-family: monospace; border-top: 3px solid #444; }
+    </style>
+</head>
+<body>
+<div class="main-container">
+    <div class="top-half">
+        <div class="video-space"><div id="pause-icon">PAUSA</div><video id="vid" class="video-js vjs-default-skin" preload="auto"></video></div>
+        <div class="info-space">
+            <div class="info-header">PLAN PREMIUM TOTAL</div>
+            <div class="epg-content"><p id="epg-num" class="ch-num-display">--</p><p id="epg-title" class="ch-name-display">ELIJA CANAL</p></div>
+            <div id="clock">00:00:00</div>
+        </div>
+    </div>
+    <div class="guide-container"><div class="grid-wrapper" id="main-grid" tabindex="0"></div></div>
+</div>
+<script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+<script>
+    var player = videojs('vid', { fluid: true, controls: false });
+    var grid = document.getElementById('main-grid');
+    var currentFocusIdx = 0;
+    var mis_listas = [
+        {id: "ar", start: 2, limit: 60},
+        {id: "movies", start: 200, limit: 50, url: "https://iptv-org.github.io/iptv/categories/movies.m3u"},
+        {id: "sports", start: 300, limit: 60, url: "https://iptv-org.github.io/iptv/categories/sports.m3u"},
+        {id: "es", start: 500, limit: 50}
+    ];
+
+    function sintonizar(el) {
+        var url = el.getAttribute('data-url');
+        var name = el.getAttribute('data-name');
+        var id = el.getAttribute('data-id');
+        var docEl = document.documentElement;
+        if (docEl.requestFullscreen) { docEl.requestFullscreen(); } else if (docEl.webkitRequestFullscreen) { docEl.webkitRequestFullscreen(); }
+        if (el.className.indexOf('active') !== -1) {
+            if (player.paused()) { player.play(); document.getElementById('pause-icon').style.display = 'none'; } 
+            else { player.pause(); document.getElementById('pause-icon').style.display = 'block'; }
+            return;
+        }
+        var items = document.getElementsByClassName('channel-item');
+        for (var i = 0; i < items.length; i++) { items[i].className = items[i].className.replace(' active', ''); }
+        el.className += ' active'; document.getElementById('pause-icon').style.display = 'none';
+        document.getElementById('epg-num').innerHTML = id; document.getElementById('epg-title').innerHTML = name;
+        player.src({ type: 'application/x-mpegURL', src: url }); player.play();
+    }
+
+    function updateFocus() {
+        var items = document.getElementsByClassName('channel-item');
+        for (var i = 0; i < items.length; i++) { items[i].className = items[i].className.replace(' focused', ''); }
+        if(items[currentFocusIdx]) { items[currentFocusIdx].className += ' focused'; items[currentFocusIdx].scrollIntoView(false); }
+    }
+
+    function add(id, name, url) {
+        var div = document.createElement('div');
+        div.className = 'channel-item';
+        div.setAttribute('data-id', id); div.setAttribute('data-url', url); div.setAttribute('data-name', name);
+        div.innerHTML = '<div class="ch-id">' + id + '</div><div class="ch-name">' + name + '</div>';
+        div.onclick = function() { 
+            var all = document.getElementsByClassName('channel-item');
+            for(var i=0; i<all.length; i++) { if(all[i] == this) currentFocusIdx = i; }
+            updateFocus(); sintonizar(this); 
+        };
+        grid.appendChild(div);
+    }
+
+    async function loadData() {
+        for (var c = 0; c < mis_listas.length; c++) {
+            try {
+                var res = await fetch(mis_listas[c].url || "https://iptv-org.github.io/iptv/countries/" + mis_listas[c].id + ".m3u");
+                var text = await res.text();
+                var lines = text.split('\n');
+                var count = 0;
+                for(var i = 0; i < lines.length; i++) {
+                    if(lines[i].indexOf('#EXTINF') !== -1) {
+                        var n = lines[i].split(',')[1] || "Canal";
+                        var l = lines[i+1];
+                        if(l && l.indexOf('http') === 0) { add((mis_listas[c].start + count), n.trim(), l.trim()); count++; }
+                    }
+                    if(count >= mis_listas[c].limit) break;
+                }
+            } catch(e) { }
+        }
+        updateFocus();
+    }
+
+    window.onkeydown = function(e) {
+        var items = document.getElementsByClassName('channel-item');
+        var key = e.keyCode || e.which;
+        if (key == 38) { e.preventDefault(); currentFocusIdx = (currentFocusIdx > 0) ? currentFocusIdx - 1 : items.length - 1; updateFocus(); }
+        else if (key == 40) { e.preventDefault(); currentFocusIdx = (currentFocusIdx < items.length - 1) ? currentFocusIdx + 1 : 0; updateFocus(); }
+        else if (key == 13) { e.preventDefault(); if(items[currentFocusIdx]) sintonizar(items[currentFocusIdx]); }
+    };
+
+    setInterval(function() {
+        var d = new Date();
+        var h = d.getHours(); var m = d.getMinutes(); var s = d.getSeconds();
+        if(h<10) h='0'+h; if(m<10) m='0'+m; if(s<10) s='0'+s;
+        document.getElementById('clock').innerHTML = h + ":" + m + ":" + s;
+    }, 1000);
+    loadData();
+</script>
+</body>
+</html>
